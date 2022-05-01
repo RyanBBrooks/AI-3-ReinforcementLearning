@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -18,13 +18,16 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
+#Ryan Brooks
+#u1115093
+#final version, slight code/comment cleanup, solved extra credit q4
 
 import mdp, util
 
@@ -60,8 +63,21 @@ class ValueIterationAgent(ValueEstimationAgent):
         self.runValueIteration()
 
     def runValueIteration(self):
-        # Write value iteration code here
-        "*** YOUR CODE HERE ***"
+        #run for a given number of iterations, updating all values
+        for x in range(self.iterations):
+            vals = util.Counter()  #stores values during a given iteration (k)
+            #look through all states, determining value
+            for state in self.mdp.getStates():
+                #find the max (Q-value = value) given our set of possible actions, store it in the counter
+                qMax = float('-inf')
+                actions = self.mdp.getPossibleActions(state)
+                for action in actions:
+                    qMax = max(qMax,self.computeQValueFromValues(state,action)) #update qMax if calculated q is new max
+                if(len(actions) == 0): # if there were no actions, the state is terminal and has a value of zero
+                    qMax = 0.0
+                vals[state] = qMax
+            #update values for used for calculation during each iteration (new k-1)
+            self.values = vals
 
 
     def getValue(self, state):
@@ -76,8 +92,14 @@ class ValueIterationAgent(ValueEstimationAgent):
           Compute the Q-value of action in state from the
           value function stored in self.values.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        q=0.0 #Q-Value retval
+        #calculate Q value by summing over all transition states Q(s,a) = sum(T(s,a,s') * [R(s,a,s') + (discount * V*(s'))])
+        for tStateProbPair in self.mdp.getTransitionStatesAndProbs(state,action):
+            tState = tStateProbPair[0] # transition state (s')
+            tProb =  tStateProbPair[1] # transition function / probability (T(s,a,s'))
+            #calculate specific "T(s,a,s') * [R(s,a,s') + (discount * V*(s'))]" and append to q-Value
+            q +=  tProb * (self.mdp.getReward(state,action,tState) + (self.discount * self.values[tState]))
+        return q
 
     def computeActionFromValues(self, state):
         """
@@ -88,8 +110,15 @@ class ValueIterationAgent(ValueEstimationAgent):
           there are no legal actions, which is the case at the
           terminal state, you should return None.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        actions = self.mdp.getPossibleActions(state)
+        #if we have no possible actions, return none
+        if(len(actions) == 0):
+            return None
+        #otherwise, compute qVal for every possible action, and store so we can find best (maximizing) action
+        Q = util.Counter() #used to store qvals for taking argmax
+        for action in actions:
+            Q[action] = self.computeQValueFromValues(state,action)
+        return Q.argMax() #bestAction = argmax across all possible actions and associated Qvals
 
     def getPolicy(self, state):
         return self.computeActionFromValues(state)
@@ -105,7 +134,6 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
     """
         * Please read learningAgents.py before reading this.*
 
-        An AsynchronousValueIterationAgent takes a Markov decision process
         (see mdp.py) on initialization and runs cyclic value iteration
         for a given number of iterations using the supplied
         discount factor.
@@ -129,7 +157,20 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
         ValueIterationAgent.__init__(self, mdp, discount, iterations)
 
     def runValueIteration(self):
-        "*** YOUR CODE HERE ***"
+        numStates = len(self.mdp.getStates())
+        #run for a given number of iterations, updating the next value each time
+        for x in range(self.iterations):
+            #look at the next state and determine value
+            state = self.mdp.getStates()[x % numStates] #x % numStates will repeatedly cycle through all indexes with incrementing x
+            qMax = float('-inf')
+            #find the max (Q-value = value) given our set of possible actions
+            actions = self.mdp.getPossibleActions(state)
+            for action in actions:
+                qMax = max(qMax,self.computeQValueFromValues(state,action)) #update qMax if calculated q is new max
+            if(len(actions) == 0): # if there were no actions, the state is terminal and has a value of zero
+                qMax = 0.0
+            #update the value of the state
+            self.values[state] = qMax
 
 class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
     """
@@ -150,4 +191,3 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
-

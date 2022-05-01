@@ -4,13 +4,16 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
+#Ryan Brooks
+#u1115093
+#final version, slight code/comment cleanup, solved extra credit q4
 
 from game import *
 from learningAgents import ReinforcementAgent
@@ -41,8 +44,7 @@ class QLearningAgent(ReinforcementAgent):
     def __init__(self, **args):
         "You can initialize Q-values here..."
         ReinforcementAgent.__init__(self, **args)
-
-        "*** YOUR CODE HERE ***"
+        self.Q = util.Counter() #storage for Q-values
 
     def getQValue(self, state, action):
         """
@@ -50,8 +52,11 @@ class QLearningAgent(ReinforcementAgent):
           Should return 0.0 if we have never seen a state
           or the Q node value otherwise
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        #if there is no entry for state (we haven't seen it) return 0
+        if(None == self.Q[(state,action)]):
+            return 0.0
+        #otherwise return Q(state,action)
+        return self.Q[(state,action)]
 
 
     def computeValueFromQValues(self, state):
@@ -61,8 +66,16 @@ class QLearningAgent(ReinforcementAgent):
           there are no legal actions, which is the case at the
           terminal state, you should return a value of 0.0.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        #find maximum Q-Value among all legal actions (which is by definition the value of a state)
+        qMax = float('-inf')
+        actions = self.getLegalActions(state)
+        #iterate over all legal actions, looking for maximum QVal
+        for action in actions:
+            qMax = max(qMax,self.getQValue(state,action))
+        #ensure that there is a legal action, no legal action => terminal state => return value of 0.0
+        if(len(actions) == 0):
+            qMax = 0.0
+        return qMax #maxQ-Val == value of a state
 
     def computeActionFromQValues(self, state):
         """
@@ -70,8 +83,14 @@ class QLearningAgent(ReinforcementAgent):
           are no legal actions, which is the case at the terminal state,
           you should return None.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        bestActions = [] #set of optimal actions
+        qMax = self.computeValueFromQValues(state) #qMax == value by definition
+        #look over all legal actions checking for optimal actions
+        for action in self.getLegalActions(state):
+            if(self.getQValue(state,action) == qMax): #if (q == qMax) => action is optimal
+                bestActions.append(action)
+        #return a random, optimal action
+        return random.choice(bestActions)
 
     def getAction(self, state):
         """
@@ -83,14 +102,14 @@ class QLearningAgent(ReinforcementAgent):
 
           HINT: You might want to use util.flipCoin(prob)
           HINT: To pick randomly from a list, use random.choice(list)
-        """
+            """
         # Pick Action
         legalActions = self.getLegalActions(state)
-        action = None
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-        return action
+        #with probability epsilon, pick a random action from the legal actions
+        if util.flipCoin(self.epsilon):
+            return random.choice(legalActions)
+        #otherwise pick the optimal action chosen from assesing Q values
+        return self.computeActionFromQValues(state)
 
     def update(self, state, action, nextState, reward):
         """
@@ -101,8 +120,9 @@ class QLearningAgent(ReinforcementAgent):
           NOTE: You should never call this function,
           it will be called on your behalf
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        #Update our old estimate of q using the formula:
+        #Q(s,a) = (1-alpha) * Q(s,a) + alpha * (R(s,a,s')+ discount * (max_a'(Q(s',a'))))
+        self.Q[(state,action)] = ((1 - self.alpha) * self.getQValue(state,action)) + ((self.alpha) * (reward + self.discount * self.computeValueFromQValues(nextState)))
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
@@ -164,15 +184,24 @@ class ApproximateQAgent(PacmanQAgent):
           Should return Q(state,action) = w * featureVector
           where * is the dotProduct operator
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        q = 0.0 #Q-value retval
+        featV = self.featExtractor.getFeatures(state,action)
+        #sum over all (f_i * w_i) to perform dot product: Q(s,a) = w (dot) features
+        for feat in featV:
+            q += featV[feat] * self.weights[feat]
+        return q
 
     def update(self, state, action, nextState, reward):
         """
            Should update your weights based on transition
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        featV = self.featExtractor.getFeatures(state,action)
+        #calculate the difference using formula: diff = [r + discount * max_a'(Q(s',a'))] - Q(s,a)
+        diff = reward + (self.discount * self.computeValueFromQValues(nextState)) - self.getQValue(state,action)
+        #update weight for each feature by an amount relative to this difference and alpha
+        for feat in featV:
+            #w_i = w_i + diff * alpha * f_i
+            self.weights[feat] += diff * (self.alpha * featV[feat])
 
     def final(self, state):
         "Called at the end of each game."
@@ -182,5 +211,4 @@ class ApproximateQAgent(PacmanQAgent):
         # did we finish training?
         if self.episodesSoFar == self.numTraining:
             # you might want to print your weights here for debugging
-            "*** YOUR CODE HERE ***"
             pass
